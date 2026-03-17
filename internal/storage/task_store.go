@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/workspace/repo/internal/models"
 )
@@ -29,10 +30,13 @@ func NewTaskStore() *TaskStore {
 func (s *TaskStore) Create(req models.CreateTaskRequest) (models.Task, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	now := time.Now().UTC()
 	task := models.Task{
 		ID:          s.nextID,
 		Title:       req.Title,
 		Description: req.Description,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	s.tasks[s.nextID] = task
 	s.nextID++
@@ -54,14 +58,19 @@ func (s *TaskStore) GetByID(id int64) (models.Task, error) {
 func (s *TaskStore) Update(id int64, req models.UpdateTaskRequest) (models.Task, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	task, ok := s.tasks[id]
+	existing, ok := s.tasks[id]
 	if !ok {
 		return models.Task{}, ErrNotFound
 	}
-	task.Title = req.Title
-	task.Description = req.Description
-	s.tasks[id] = task
-	return task, nil
+	updated := models.Task{
+		ID:          existing.ID,
+		Title:       req.Title,
+		Description: req.Description,
+		CreatedAt:   existing.CreatedAt,
+		UpdatedAt:   time.Now().UTC(),
+	}
+	s.tasks[id] = updated
+	return updated, nil
 }
 
 // Delete removes a task by ID.
