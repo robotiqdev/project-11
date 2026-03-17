@@ -1,11 +1,25 @@
 package integration_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/workspace/repo/internal/handlers"
 	"github.com/workspace/repo/internal/models"
+	"github.com/workspace/repo/internal/router"
 	"github.com/workspace/repo/internal/storage"
 )
+
+// newIntegrationRouter creates a router backed by a fresh in-memory store for
+// integration tests. It returns both the handler (for direct store access) and
+// the routed http.Handler.
+func newIntegrationRouter() (http.Handler, *handlers.TaskHandler, *storage.InMemoryTaskStore) {
+	store := storage.NewInMemoryTaskStore()
+	h := handlers.NewTaskHandler(store)
+	r := router.New(h)
+	return r, h, store
+}
 
 // newIntegrationStore returns a fresh InMemoryTaskStore for integration tests.
 func newIntegrationStore() *storage.InMemoryTaskStore {
@@ -96,4 +110,75 @@ func TestIDCounter_NeverReusesAnyDeletedID(t *testing.T) {
 			t.Errorf("new task %d ID (%d) is not greater than max deleted ID (%d)", i, task.ID, maxDeleted)
 		}
 	}
+}
+
+// --- Router route registration tests ---
+
+// TestRouter_DeleteTaskByID_IsRouted verifies that the router registers the
+// DELETE /tasks/{id} route, so a DELETE request is dispatched to the handler
+// rather than returning 404 from the router itself. A pre-seeded task is used
+// so the handler can respond with 204 No Content (confirming the route exists).
+func TestRouter_DeleteTaskByID_IsRouted(t *testing.T) {
+	r, _, store := newIntegrationRouter()
+
+	// Seed a task so the handler returns 204, not 404.
+	task, err := store.Create(models.CreateTaskRequest{
+		Title:       "Router Test Task",
+		Description: "Router Test Description",
+	})
+	if err != nil {
+		t.Fatalf("failed to seed task: %v", err)
+	}
+
+	path := "/tasks/" + itoa(task.ID)
+	req := httptest.NewRequest(http.MethodDelete, path, nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	// 404 means the router has no matching route — the route is not registered.
+	if rr.Code == http.StatusNotFound {
+		t.Errorf("DELETE %s returned 404: DELETE /tasks/{id} route is not registered in the router", path)
+	}
+	// Expect 204 No Content when the task exists and the route is properly registered.
+	if rr.Code != http.StatusNoContent {
+		t.Errorf("expected status 204 No Content, got %d", rr.Code)
+	}
+}
+
+// TestRouter_PostTaskByID_Returns405 verifies that POST /tasks/{id} returns
+// HTTP 405 Method Not Allowed. Go 1.22 method-prefixed patterns automatically
+// respond 405 when a path matches but the HTTP method does not.
+func TestRouter_PostTaskByID_Returns405(t *testing.T) {
+	r, _, _ := newIntegrationRouter()
+
+	req := httptest.NewRequest(http.MethodPost, "/tasks/1", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Errorf("expected status 405 Method Not Allowed for POST /tasks/1, got %d", rr.Code)
+	}
+}
+
+// itoa converts an int64 to its decimal string representation.
+func itoa(n int64) string {
+	if n == 0 {
+		return "0"
+	}
+	buf := [20]byte{}
+	pos := len(buf)
+	neg := n < 0
+	if neg {
+		n = -n
+	}
+	for n > 0 {
+		pos--
+		buf[pos] = byte('0' + n%10)
+		n /= 10
+	}
+	if neg {
+		pos--
+		buf[pos] = '-'
+	}
+	return string(buf[pos:])
 }
