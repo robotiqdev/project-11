@@ -9,9 +9,9 @@ import (
 // IDGenerator is a stub for ID generation. Full implementation in a separate task.
 type IDGenerator struct{}
 
-// NewIDGenerator creates a new IDGenerator stub.
+// NewIDGenerator creates a new IDGenerator.
 func NewIDGenerator() *IDGenerator {
-	return nil // stub: not implemented
+	return &IDGenerator{}
 }
 
 // InMemoryTaskStore holds tasks in memory.
@@ -21,8 +21,10 @@ type InMemoryTaskStore struct {
 	idGen *IDGenerator
 }
 
-// NewInMemoryTaskStore returns a stub InMemoryTaskStore with uninitialized fields.
-// Proper implementation must initialize tasks map and idGen.
+// NewInMemoryTaskStore returns an InMemoryTaskStore with an initialized tasks map and IDGenerator.
 func NewInMemoryTaskStore() *InMemoryTaskStore {
-	return &InMemoryTaskStore{} // stub: tasks is nil, idGen is nil — tests should fail
+	return &InMemoryTaskStore{
+		tasks: make(map[int64]models.Task),
+		idGen: NewIDGenerator(),
+	}
 }
