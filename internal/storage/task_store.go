@@ -90,6 +90,10 @@ func (s *InMemoryTaskStore) GetAll() []models.Task {
 
 // Update replaces the fields of the task identified by id using the provided request.
 func (s *InMemoryTaskStore) Update(id int64, req models.UpdateTaskRequest) (models.Task, error) {
+	if err := req.Validate(); err != nil {
+		return models.Task{}, err
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
