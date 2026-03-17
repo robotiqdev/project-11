@@ -3,6 +3,7 @@ package storage_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/workspace/repo/internal/models"
 	"github.com/workspace/repo/internal/storage"
@@ -274,5 +275,186 @@ func TestCreate_AssignsUniqueIDs(t *testing.T) {
 	}
 	if t1.ID == t2.ID {
 		t.Errorf("expected unique IDs for two created tasks, both got ID=%d", t1.ID)
+	}
+}
+
+// --- Update persistence tests (TASK-4528) ---
+
+func TestUpdate_ReturnsTaskWithNewTitleAndDescription(t *testing.T) {
+	store := storage.NewTaskStore()
+	created, err := store.Create(models.CreateTaskRequest{
+		Title:       "Original Title",
+		Description: "Original Description",
+	})
+	if err != nil {
+		t.Fatalf("Create returned unexpected error: %v", err)
+	}
+
+	updateReq := models.UpdateTaskRequest{
+		Title:       "Updated Title",
+		Description: "Updated Description",
+	}
+	updated, err := store.Update(created.ID, updateReq)
+	if err != nil {
+		t.Fatalf("Update returned unexpected error: %v", err)
+	}
+
+	if updated.Title != updateReq.Title {
+		t.Errorf("expected title %q, got %q", updateReq.Title, updated.Title)
+	}
+	if updated.Description != updateReq.Description {
+		t.Errorf("expected description %q, got %q", updateReq.Description, updated.Description)
+	}
+}
+
+func TestUpdate_UpdatedAtIsAfterCreatedAt(t *testing.T) {
+	store := storage.NewTaskStore()
+	created, err := store.Create(models.CreateTaskRequest{
+		Title:       "Task",
+		Description: "Description",
+	})
+	if err != nil {
+		t.Fatalf("Create returned unexpected error: %v", err)
+	}
+
+	updated, err := store.Update(created.ID, models.UpdateTaskRequest{
+		Title:       "New Title",
+		Description: "New Description",
+	})
+	if err != nil {
+		t.Fatalf("Update returned unexpected error: %v", err)
+	}
+
+	if updated.UpdatedAt.IsZero() {
+		t.Fatal("expected UpdatedAt to be set, got zero value")
+	}
+	if !updated.UpdatedAt.After(updated.CreatedAt) {
+		t.Errorf("expected UpdatedAt (%v) to be after CreatedAt (%v)", updated.UpdatedAt, updated.CreatedAt)
+	}
+}
+
+func TestUpdate_PreservesOriginalCreatedAt(t *testing.T) {
+	store := storage.NewTaskStore()
+	created, err := store.Create(models.CreateTaskRequest{
+		Title:       "Task",
+		Description: "Description",
+	})
+	if err != nil {
+		t.Fatalf("Create returned unexpected error: %v", err)
+	}
+
+	updated, err := store.Update(created.ID, models.UpdateTaskRequest{
+		Title:       "New Title",
+		Description: "New Description",
+	})
+	if err != nil {
+		t.Fatalf("Update returned unexpected error: %v", err)
+	}
+
+	if !updated.CreatedAt.Equal(created.CreatedAt) {
+		t.Errorf("expected CreatedAt to be preserved: got %v, want %v", updated.CreatedAt, created.CreatedAt)
+	}
+}
+
+func TestUpdate_GetByID_ReturnsUpdatedValues(t *testing.T) {
+	store := storage.NewTaskStore()
+	created, err := store.Create(models.CreateTaskRequest{
+		Title:       "Original",
+		Description: "Original Desc",
+	})
+	if err != nil {
+		t.Fatalf("Create returned unexpected error: %v", err)
+	}
+
+	updateReq := models.UpdateTaskRequest{
+		Title:       "Persisted Title",
+		Description: "Persisted Description",
+	}
+	_, err = store.Update(created.ID, updateReq)
+	if err != nil {
+		t.Fatalf("Update returned unexpected error: %v", err)
+	}
+
+	got, err := store.GetByID(created.ID)
+	if err != nil {
+		t.Fatalf("GetByID after Update returned unexpected error: %v", err)
+	}
+	if got.Title != updateReq.Title {
+		t.Errorf("expected persisted title %q, got %q", updateReq.Title, got.Title)
+	}
+	if got.Description != updateReq.Description {
+		t.Errorf("expected persisted description %q, got %q", updateReq.Description, got.Description)
+	}
+}
+
+func TestUpdate_DoesNotAffectOtherTasks(t *testing.T) {
+	store := storage.NewTaskStore()
+
+	task1, err := store.Create(models.CreateTaskRequest{
+		Title:       "Task One",
+		Description: "Description One",
+	})
+	if err != nil {
+		t.Fatalf("Create task1 returned unexpected error: %v", err)
+	}
+
+	task2, err := store.Create(models.CreateTaskRequest{
+		Title:       "Task Two",
+		Description: "Description Two",
+	})
+	if err != nil {
+		t.Fatalf("Create task2 returned unexpected error: %v", err)
+	}
+
+	_, err = store.Update(task1.ID, models.UpdateTaskRequest{
+		Title:       "Task One Updated",
+		Description: "Description One Updated",
+	})
+	if err != nil {
+		t.Fatalf("Update task1 returned unexpected error: %v", err)
+	}
+
+	got2, err := store.GetByID(task2.ID)
+	if err != nil {
+		t.Fatalf("GetByID task2 after updating task1 returned unexpected error: %v", err)
+	}
+	if got2.Title != task2.Title {
+		t.Errorf("task2 title was mutated: got %q, want %q", got2.Title, task2.Title)
+	}
+	if got2.Description != task2.Description {
+		t.Errorf("task2 description was mutated: got %q, want %q", got2.Description, task2.Description)
+	}
+}
+
+func TestUpdate_TwiceProducesIncreasingUpdatedAt(t *testing.T) {
+	store := storage.NewTaskStore()
+	created, err := store.Create(models.CreateTaskRequest{
+		Title:       "Task",
+		Description: "Description",
+	})
+	if err != nil {
+		t.Fatalf("Create returned unexpected error: %v", err)
+	}
+
+	first, err := store.Update(created.ID, models.UpdateTaskRequest{
+		Title:       "First Update",
+		Description: "First Description",
+	})
+	if err != nil {
+		t.Fatalf("first Update returned unexpected error: %v", err)
+	}
+
+	time.Sleep(1 * time.Millisecond)
+
+	second, err := store.Update(created.ID, models.UpdateTaskRequest{
+		Title:       "Second Update",
+		Description: "Second Description",
+	})
+	if err != nil {
+		t.Fatalf("second Update returned unexpected error: %v", err)
+	}
+
+	if !second.UpdatedAt.After(first.UpdatedAt) {
+		t.Errorf("expected second UpdatedAt (%v) to be after first UpdatedAt (%v)", second.UpdatedAt, first.UpdatedAt)
 	}
 }
