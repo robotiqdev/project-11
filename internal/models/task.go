@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Task represents the domain task entity.
 type Task struct {
@@ -19,7 +22,19 @@ type CreateTaskRequest struct {
 
 // Validate validates the CreateTaskRequest.
 func (r CreateTaskRequest) Validate() error {
-	panic("not implemented")
+	if r.Title == "" {
+		return errors.New("title is required")
+	}
+	if len(r.Title) > 200 {
+		return errors.New("title must not exceed 200 characters")
+	}
+	if r.Description == "" {
+		return errors.New("description is required")
+	}
+	if len(r.Description) > 1000 {
+		return errors.New("description must not exceed 1000 characters")
+	}
+	return nil
 }
 
 // UpdateTaskRequest is the DTO for updating a task.
@@ -30,5 +45,17 @@ type UpdateTaskRequest struct {
 
 // Validate validates the UpdateTaskRequest.
 func (r UpdateTaskRequest) Validate() error {
-	panic("not implemented")
+	if r.Title == "" {
+		return errors.New("title is required")
+	}
+	if len(r.Title) > 200 {
+		return errors.New("title must not exceed 200 characters")
+	}
+	if r.Description == "" {
+		return errors.New("description is required")
+	}
+	if len(r.Description) > 1000 {
+		return errors.New("description must not exceed 1000 characters")
+	}
+	return nil
 }
