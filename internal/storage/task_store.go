@@ -2,7 +2,9 @@ package storage
 
 import (
 	"errors"
+	"sort"
 	"sync"
+	"time"
 
 	"github.com/workspace/repo/internal/models"
 )
@@ -50,25 +52,68 @@ func NewInMemoryTaskStore() *InMemoryTaskStore {
 
 // Create stores a new task and returns it with a populated ID and timestamps.
 func (s *InMemoryTaskStore) Create(req models.CreateTaskRequest) (models.Task, error) {
-	return models.Task{}, errors.New("not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id := s.idGen.NextID()
+	now := time.Now().UTC()
+	task := models.Task{
+		ID:          id,
+		Title:       req.Title,
+		Description: req.Description,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	s.tasks[id] = task
+	return task, nil
 }
 
 // GetByID returns the task with the given ID or ErrNotFound.
 func (s *InMemoryTaskStore) GetByID(id int64) (models.Task, error) {
-	return models.Task{}, errors.New("not implemented")
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	task, ok := s.tasks[id]
+	if !ok {
+		return models.Task{}, ErrNotFound
+	}
+	return task, nil
 }
 
-// GetAll returns all stored tasks.
+// GetAll returns all stored tasks sorted by ID.
 func (s *InMemoryTaskStore) GetAll() []models.Task {
-	return nil
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	tasks := make([]models.Task, 0, len(s.tasks))
+	for _, t := range s.tasks {
+		tasks = append(tasks, t)
+	}
+	sort.Slice(tasks, func(i, j int) bool {
+		return tasks[i].ID < tasks[j].ID
+	})
+	return tasks
 }
 
 // Update modifies an existing task or returns ErrNotFound.
 func (s *InMemoryTaskStore) Update(id int64, req models.UpdateTaskRequest) (models.Task, error) {
-	return models.Task{}, errors.New("not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	task, ok := s.tasks[id]
+	if !ok {
+		return models.Task{}, ErrNotFound
+	}
+	task.Title = req.Title
+	task.Description = req.Description
+	task.UpdatedAt = time.Now().UTC()
+	s.tasks[id] = task
+	return task, nil
 }
 
 // Delete removes a task by ID or returns ErrNotFound.
 func (s *InMemoryTaskStore) Delete(id int64) error {
-	return errors.New("not implemented")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.tasks[id]; !ok {
+		return ErrNotFound
+	}
+	delete(s.tasks, id)
+	return nil
 }
