@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/workspace/repo/internal/models"
@@ -12,18 +13,19 @@ import (
 // ErrNotFound is returned when a task with the requested ID does not exist.
 var ErrNotFound = errors.New("task not found")
 
-// IDGenerator generates strictly increasing integer IDs.
+// IDGenerator generates unique sequential IDs.
 type IDGenerator struct {
-	mu      sync.Mutex
-	current int64
+	counter int64
 }
 
-// NextID returns the next unique ID.
+// NewIDGenerator creates a new IDGenerator.
+func NewIDGenerator() *IDGenerator {
+	return &IDGenerator{}
+}
+
+// NextID returns the next unique task ID.
 func (g *IDGenerator) NextID() int64 {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	g.current++
-	return g.current
+	return atomic.AddInt64(&g.counter, 1)
 }
 
 // TaskStore defines the interface for task persistence operations.
@@ -46,14 +48,19 @@ type InMemoryTaskStore struct {
 func NewInMemoryTaskStore() *InMemoryTaskStore {
 	return &InMemoryTaskStore{
 		tasks: make(map[int64]models.Task),
-		idGen: &IDGenerator{},
+		idGen: NewIDGenerator(),
 	}
 }
 
 // Create stores a new task and returns it with a populated ID and timestamps.
 func (s *InMemoryTaskStore) Create(req models.CreateTaskRequest) (models.Task, error) {
+	if err := req.Validate(); err != nil {
+		return models.Task{}, err
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	id := s.idGen.NextID()
 	now := time.Now().UTC()
 	task := models.Task{
@@ -71,6 +78,7 @@ func (s *InMemoryTaskStore) Create(req models.CreateTaskRequest) (models.Task, e
 func (s *InMemoryTaskStore) GetByID(id int64) (models.Task, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	task, ok := s.tasks[id]
 	if !ok {
 		return models.Task{}, ErrNotFound
@@ -94,8 +102,13 @@ func (s *InMemoryTaskStore) GetAll() []models.Task {
 
 // Update modifies an existing task or returns ErrNotFound.
 func (s *InMemoryTaskStore) Update(id int64, req models.UpdateTaskRequest) (models.Task, error) {
+	if err := req.Validate(); err != nil {
+		return models.Task{}, err
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	task, ok := s.tasks[id]
 	if !ok {
 		return models.Task{}, ErrNotFound
@@ -111,6 +124,7 @@ func (s *InMemoryTaskStore) Update(id int64, req models.UpdateTaskRequest) (mode
 func (s *InMemoryTaskStore) Delete(id int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	if _, ok := s.tasks[id]; !ok {
 		return ErrNotFound
 	}
