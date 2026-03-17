@@ -22,6 +22,22 @@ func (m *mockTaskStore) Create(req models.CreateTaskRequest) (*models.Task, erro
 	return m.createFn(req)
 }
 
+func (m *mockTaskStore) GetAll() ([]*models.Task, error) {
+	return nil, nil
+}
+
+func (m *mockTaskStore) GetByID(id int64) (*models.Task, error) {
+	return nil, nil
+}
+
+func (m *mockTaskStore) Update(id int64, req models.UpdateTaskRequest) (*models.Task, error) {
+	return nil, nil
+}
+
+func (m *mockTaskStore) Delete(id int64) error {
+	return nil
+}
+
 // newSuccessStore returns a mockTaskStore that always creates a task successfully.
 func newSuccessStore() *mockTaskStore {
 	return &mockTaskStore{

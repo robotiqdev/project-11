@@ -20,6 +20,12 @@ type CreateTaskRequest struct {
 	Description string `json:"description"`
 }
 
+// UpdateTaskRequest holds the fields that can be updated on an existing task.
+type UpdateTaskRequest struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
 // Validate checks that the request fields satisfy all constraints.
 func (r *CreateTaskRequest) Validate() error {
 	if r.Title == "" {
