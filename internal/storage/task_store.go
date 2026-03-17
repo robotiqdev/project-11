@@ -52,6 +52,11 @@ func NewInMemoryTaskStore() *InMemoryTaskStore {
 	}
 }
 
+// NewTaskStore is an alias for NewInMemoryTaskStore.
+func NewTaskStore() *InMemoryTaskStore {
+	return NewInMemoryTaskStore()
+}
+
 // Create stores a new task and returns it with a populated ID and timestamps.
 func (s *InMemoryTaskStore) Create(req models.CreateTaskRequest) (models.Task, error) {
 	if err := req.Validate(); err != nil {

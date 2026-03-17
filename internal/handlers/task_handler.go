@@ -73,8 +73,8 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.Title == "" {
-		writeError(w, http.StatusBadRequest, "title is required")
+	if err := req.Validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	task, err := h.store.Update(id, req)
