@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Task represents a task in the system.
 type Task struct {
@@ -19,5 +22,17 @@ type CreateTaskRequest struct {
 
 // Validate checks that the request fields satisfy all constraints.
 func (r *CreateTaskRequest) Validate() error {
-	return nil // stub — implementation pending
+	if r.Title == "" {
+		return errors.New("title is required")
+	}
+	if len(r.Title) > 200 {
+		return errors.New("title must not exceed 200 characters")
+	}
+	if r.Description == "" {
+		return errors.New("description is required")
+	}
+	if len(r.Description) > 1000 {
+		return errors.New("description must not exceed 1000 characters")
+	}
+	return nil
 }
