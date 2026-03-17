@@ -126,6 +126,7 @@ func (s *InMemoryTaskStore) Update(id int64, req models.UpdateTaskRequest) (mode
 }
 
 // Delete removes a task by ID or returns ErrNotFound.
+// IDs are never reused: the id generator is monotonically increasing and delete only removes the map entry.
 func (s *InMemoryTaskStore) Delete(id int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

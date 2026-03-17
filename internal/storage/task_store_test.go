@@ -621,6 +621,109 @@ func TestDelete_ErrorCanBeIdentifiedWithErrorsIs(t *testing.T) {
 	}
 }
 
+// --- ID never reused after delete tests ---
+
+func TestIDCounter_NeverReusesDeletedID_SingleDelete(t *testing.T) {
+	s := newStore()
+
+	// Create first task — expect ID 1.
+	task1, err := s.Create(validCreateReq("Task 1", "Description 1"))
+	if err != nil {
+		t.Fatalf("create task1 failed: %v", err)
+	}
+	if task1.ID != 1 {
+		t.Fatalf("expected first task ID to be 1, got %d", task1.ID)
+	}
+
+	// Delete the first task.
+	if err := s.Delete(task1.ID); err != nil {
+		t.Fatalf("delete task1 failed: %v", err)
+	}
+
+	// Create a second task — ID must NOT be reused; it must be 2.
+	task2, err := s.Create(validCreateReq("Task 2", "Description 2"))
+	if err != nil {
+		t.Fatalf("create task2 failed: %v", err)
+	}
+	if task2.ID == task1.ID {
+		t.Errorf("ID was reused after delete: both task1 and task2 have ID %d", task1.ID)
+	}
+	if task2.ID != 2 {
+		t.Errorf("expected task2.ID == 2, got %d", task2.ID)
+	}
+}
+
+func TestIDCounter_NeverReusesDeletedIDs_MultipleDeletes(t *testing.T) {
+	s := newStore()
+
+	// Create 5 tasks.
+	tasks := make([]models.Task, 5)
+	for i := 0; i < 5; i++ {
+		task, err := s.Create(validCreateReq("Task", "Description"))
+		if err != nil {
+			t.Fatalf("create task %d failed: %v", i+1, err)
+		}
+		tasks[i] = task
+	}
+
+	// Delete tasks at index 1 (id=2) and index 3 (id=4).
+	if err := s.Delete(tasks[1].ID); err != nil {
+		t.Fatalf("delete task[1] (id=%d) failed: %v", tasks[1].ID, err)
+	}
+	if err := s.Delete(tasks[3].ID); err != nil {
+		t.Fatalf("delete task[3] (id=%d) failed: %v", tasks[3].ID, err)
+	}
+
+	// Create 2 more tasks — their IDs must be 6 and 7, not reusing 2 or 4.
+	task6, err := s.Create(validCreateReq("Task 6", "Description 6"))
+	if err != nil {
+		t.Fatalf("create task6 failed: %v", err)
+	}
+	task7, err := s.Create(validCreateReq("Task 7", "Description 7"))
+	if err != nil {
+		t.Fatalf("create task7 failed: %v", err)
+	}
+
+	deletedIDs := map[int64]bool{tasks[1].ID: true, tasks[3].ID: true}
+
+	if deletedIDs[task6.ID] {
+		t.Errorf("task6 was assigned a reused (deleted) ID %d", task6.ID)
+	}
+	if deletedIDs[task7.ID] {
+		t.Errorf("task7 was assigned a reused (deleted) ID %d", task7.ID)
+	}
+	if task6.ID != 6 {
+		t.Errorf("expected task6.ID == 6, got %d", task6.ID)
+	}
+	if task7.ID != 7 {
+		t.Errorf("expected task7.ID == 7, got %d", task7.ID)
+	}
+}
+
+func TestIDCounter_IsMonotonicallyIncreasingAcrossDeletes(t *testing.T) {
+	s := newStore()
+
+	prev, err := s.Create(validCreateReq("First", "First"))
+	if err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+
+	for i := 0; i < 5; i++ {
+		// Delete the previous task then create a new one.
+		if err := s.Delete(prev.ID); err != nil {
+			t.Fatalf("delete (iteration %d) failed: %v", i, err)
+		}
+		next, err := s.Create(validCreateReq("Task", "Description"))
+		if err != nil {
+			t.Fatalf("create (iteration %d) failed: %v", i, err)
+		}
+		if next.ID <= prev.ID {
+			t.Errorf("iteration %d: expected new ID (%d) > previous ID (%d)", i, next.ID, prev.ID)
+		}
+		prev = next
+	}
+}
+
 // --- TaskStore interface compliance ---
 
 func TestInMemoryTaskStore_ImplementsTaskStoreInterface(t *testing.T) {
