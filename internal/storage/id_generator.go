@@ -1,5 +1,7 @@
 package storage
 
+import "sync/atomic"
+
 // IDGenerator generates sequential, unique, monotonically increasing IDs.
 type IDGenerator struct {
 	counter int64
@@ -12,6 +14,5 @@ func NewIDGenerator() *IDGenerator {
 
 // NextID returns the next unique ID. Calls are thread-safe.
 func (g *IDGenerator) NextID() int64 {
-	// Stub — implementation to be added by the implementation developer.
-	return 0
+	return atomic.AddInt64(&g.counter, 1)
 }
