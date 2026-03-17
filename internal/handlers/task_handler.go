@@ -39,6 +39,65 @@ func (h *TaskHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, tasks)
 }
 
+// Create handles POST /tasks.
+func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req models.CreateTaskRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	task, err := h.store.Create(req)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	writeJSON(w, http.StatusCreated, task)
+}
+
+// Update handles PUT /tasks/{id}.
+func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		writeError(w, http.StatusBadRequest, "invalid task id")
+		return
+	}
+	var req models.UpdateTaskRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	task, err := h.store.Update(id, req)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "task not found")
+		} else {
+			writeError(w, http.StatusInternalServerError, "internal server error")
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, task)
+}
+
+// Delete handles DELETE /tasks/{id}.
+func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		writeError(w, http.StatusBadRequest, "invalid task id")
+		return
+	}
+	if err := h.store.Delete(id); err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "task not found")
+		} else {
+			writeError(w, http.StatusInternalServerError, "internal server error")
+		}
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // GetByID handles GET /tasks/{id}.
 func (h *TaskHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
