@@ -237,6 +237,141 @@ func TestUpdateTaskRequest_Validate_ZeroValueIsInvalid(t *testing.T) {
 	}
 }
 
+func TestUpdateTaskRequest_Validate_TitleExactly201CharsReturnsError(t *testing.T) {
+	req := UpdateTaskRequest{
+		Title:       strings.Repeat("a", 201),
+		Description: "A valid description",
+	}
+	err := req.Validate()
+	if err == nil {
+		t.Fatal("expected error for title of exactly 201 chars, got nil")
+	}
+}
+
+func TestUpdateTaskRequest_Validate_ErrorMessageForEmptyTitleMatchesCreate(t *testing.T) {
+	createReq := CreateTaskRequest{Title: "", Description: "A valid description"}
+	updateReq := UpdateTaskRequest{Title: "", Description: "A valid description"}
+
+	createErr := createReq.Validate()
+	updateErr := updateReq.Validate()
+
+	if createErr == nil {
+		t.Fatal("expected CreateTaskRequest to return error for empty title")
+	}
+	if updateErr == nil {
+		t.Fatal("expected UpdateTaskRequest to return error for empty title")
+	}
+	if createErr.Error() != updateErr.Error() {
+		t.Errorf("error messages differ: CreateTaskRequest=%q, UpdateTaskRequest=%q",
+			createErr.Error(), updateErr.Error())
+	}
+}
+
+func TestUpdateTaskRequest_Validate_ErrorMessageForTitleTooLongMatchesCreate(t *testing.T) {
+	createReq := CreateTaskRequest{Title: strings.Repeat("a", 201), Description: "A valid description"}
+	updateReq := UpdateTaskRequest{Title: strings.Repeat("a", 201), Description: "A valid description"}
+
+	createErr := createReq.Validate()
+	updateErr := updateReq.Validate()
+
+	if createErr == nil {
+		t.Fatal("expected CreateTaskRequest to return error for title over 200 chars")
+	}
+	if updateErr == nil {
+		t.Fatal("expected UpdateTaskRequest to return error for title over 200 chars")
+	}
+	if createErr.Error() != updateErr.Error() {
+		t.Errorf("error messages differ: CreateTaskRequest=%q, UpdateTaskRequest=%q",
+			createErr.Error(), updateErr.Error())
+	}
+}
+
+func TestUpdateTaskRequest_Validate_ErrorMessageForEmptyDescriptionMatchesCreate(t *testing.T) {
+	createReq := CreateTaskRequest{Title: "Valid Title", Description: ""}
+	updateReq := UpdateTaskRequest{Title: "Valid Title", Description: ""}
+
+	createErr := createReq.Validate()
+	updateErr := updateReq.Validate()
+
+	if createErr == nil {
+		t.Fatal("expected CreateTaskRequest to return error for empty description")
+	}
+	if updateErr == nil {
+		t.Fatal("expected UpdateTaskRequest to return error for empty description")
+	}
+	if createErr.Error() != updateErr.Error() {
+		t.Errorf("error messages differ: CreateTaskRequest=%q, UpdateTaskRequest=%q",
+			createErr.Error(), updateErr.Error())
+	}
+}
+
+func TestUpdateTaskRequest_Validate_ErrorMessageForDescriptionTooLongMatchesCreate(t *testing.T) {
+	createReq := CreateTaskRequest{Title: "Valid Title", Description: strings.Repeat("d", 1001)}
+	updateReq := UpdateTaskRequest{Title: "Valid Title", Description: strings.Repeat("d", 1001)}
+
+	createErr := createReq.Validate()
+	updateErr := updateReq.Validate()
+
+	if createErr == nil {
+		t.Fatal("expected CreateTaskRequest to return error for description over 1000 chars")
+	}
+	if updateErr == nil {
+		t.Fatal("expected UpdateTaskRequest to return error for description over 1000 chars")
+	}
+	if createErr.Error() != updateErr.Error() {
+		t.Errorf("error messages differ: CreateTaskRequest=%q, UpdateTaskRequest=%q",
+			createErr.Error(), updateErr.Error())
+	}
+}
+
+func TestUpdateTaskRequest_Validate_ExactErrorMessageEmptyTitle(t *testing.T) {
+	req := UpdateTaskRequest{Title: "", Description: "A valid description"}
+	err := req.Validate()
+	if err == nil {
+		t.Fatal("expected error for empty title, got nil")
+	}
+	want := "title is required"
+	if err.Error() != want {
+		t.Errorf("unexpected error message: got %q, want %q", err.Error(), want)
+	}
+}
+
+func TestUpdateTaskRequest_Validate_ExactErrorMessageTitleTooLong(t *testing.T) {
+	req := UpdateTaskRequest{Title: strings.Repeat("a", 201), Description: "A valid description"}
+	err := req.Validate()
+	if err == nil {
+		t.Fatal("expected error for title over 200 chars, got nil")
+	}
+	want := "title must not exceed 200 characters"
+	if err.Error() != want {
+		t.Errorf("unexpected error message: got %q, want %q", err.Error(), want)
+	}
+}
+
+func TestUpdateTaskRequest_Validate_ExactErrorMessageEmptyDescription(t *testing.T) {
+	req := UpdateTaskRequest{Title: "Valid Title", Description: ""}
+	err := req.Validate()
+	if err == nil {
+		t.Fatal("expected error for empty description, got nil")
+	}
+	want := "description is required"
+	if err.Error() != want {
+		t.Errorf("unexpected error message: got %q, want %q", err.Error(), want)
+	}
+}
+
+func TestUpdateTaskRequest_Validate_ExactErrorMessageDescriptionTooLong(t *testing.T) {
+	req := UpdateTaskRequest{Title: "Valid Title", Description: strings.Repeat("d", 1001)}
+	err := req.Validate()
+	if err == nil {
+		t.Fatal("expected error for description over 1000 chars, got nil")
+	}
+	want := "description must not exceed 1000 characters"
+	if err.Error() != want {
+		t.Errorf("unexpected error message: got %q, want %q", err.Error(), want)
+	}
+}
+
 // --- Task struct tests ---
 
 func TestTask_ZeroValueIsInvalid(t *testing.T) {
