@@ -76,7 +76,10 @@ func TestRouter_RootPath_Returns404(t *testing.T) {
 func TestRouter_PatchTasks_Returns405(t *testing.T) {
 	srv := newTestServer(t)
 
-	req, _ := http.NewRequest(http.MethodPatch, srv.URL+"/tasks", nil)
+	req, err := http.NewRequest(http.MethodPatch, srv.URL+"/tasks", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
@@ -92,7 +95,10 @@ func TestRouter_DeleteTasks_Returns405(t *testing.T) {
 	// DELETE is not registered on the /tasks collection, only on /tasks/{id}.
 	srv := newTestServer(t)
 
-	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/tasks", nil)
+	req, err := http.NewRequest(http.MethodDelete, srv.URL+"/tasks", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
@@ -108,7 +114,10 @@ func TestRouter_PutTasks_Returns405(t *testing.T) {
 	// PUT is not registered on the /tasks collection, only on /tasks/{id}.
 	srv := newTestServer(t)
 
-	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/tasks", nil)
+	req, err := http.NewRequest(http.MethodPut, srv.URL+"/tasks", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
@@ -123,7 +132,10 @@ func TestRouter_PutTasks_Returns405(t *testing.T) {
 func TestRouter_PatchTaskByID_Returns405(t *testing.T) {
 	srv := newTestServer(t)
 
-	req, _ := http.NewRequest(http.MethodPatch, srv.URL+"/tasks/1", nil)
+	req, err := http.NewRequest(http.MethodPatch, srv.URL+"/tasks/1", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
@@ -139,7 +151,10 @@ func TestRouter_PostTaskByID_Returns405(t *testing.T) {
 	// POST is only registered on the collection, not on /tasks/{id}.
 	srv := newTestServer(t)
 
-	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/tasks/1", nil)
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/tasks/1", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
